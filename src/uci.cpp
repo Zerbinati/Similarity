@@ -273,16 +273,20 @@ void UCI::loop(int argc, char* argv[]) {
 
       else if (token == "setoption")  setoption(is);
       else if (token == "go")         go(pos, is, states);
-      else if (token == "position")   position(pos, is, states);
+      else if (token == "position")
+      {
+          position(pos, is, states);
+
+          if (Options["Clean Search"] == 1)
+              Search::clear();
+      }
       else if (token == "ucinewgame") Search::clear();
       else if (token == "isready")
       {
           //Make sure experience has finished loading
           Experience::wait_for_loading_finished();
-
           sync_cout << "readyok" << sync_endl;
       }
-
       // Add custom non-UCI commands, mainly for debugging purposes.
       // These commands must not be used during a search!
       else if (token == "flip")     pos.flip();
@@ -323,14 +327,20 @@ void UCI::loop(int argc, char* argv[]) {
 /// mate <y>  Mate in 'y' moves (not plies). If the engine is getting mated,
 ///           uses negative values for 'y'.
 
-string UCI::value(Value v) {
+string UCI::value(Value v, Value v2) {
 
   assert(-VALUE_INFINITE < v && v < VALUE_INFINITE);
 
   stringstream ss;
 
   if (abs(v) < VALUE_MATE_IN_MAX_PLY)
+  {
+      if (   abs(v) < 80 * PawnValueEg
+          && abs(v - v2) < PawnValueEg)
+          v = (v + v2) / 2;
+
       ss << "cp " << v * 100 / PawnValueEg;
+  }
   else
       ss << "mate " << (v > 0 ? VALUE_MATE - v + 1 : -VALUE_MATE - v) / 2;
 

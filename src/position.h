@@ -115,6 +115,7 @@ public:
   Bitboard blockers_for_king(Color c) const;
   Bitboard check_squares(PieceType pt) const;
   Bitboard pinners(Color c) const;
+  bool is_discovered_check_on_king(Color c, Move m) const;
 
   // Attacks to/from a given square
   Bitboard attackers_to(Square s) const;
@@ -159,6 +160,8 @@ public:
   bool is_draw(int ply) const;
   bool has_game_cycle(int ply) const;
   bool has_repeated() const;
+  bool king_danger() const;
+  bool is_scb(Color c) const;
   int rule50_count() const;
   Score psq_score() const;
   Value psq_eg_stm() const;
@@ -318,6 +321,10 @@ inline Bitboard Position::check_squares(PieceType pt) const {
   return st->checkSquares[pt];
 }
 
+inline bool Position::is_discovered_check_on_king(Color c, Move m) const {
+  return st->blockersForKing[c] & from_sq(m);
+}
+
 inline bool Position::pawn_passed(Color c, Square s) const {
   return !(pieces(~c, PAWN) & passed_pawn_span(c, s));
 }
@@ -328,7 +335,8 @@ inline int Position::pawns_on_same_color_squares(Color c, Square s) const {
 
 inline Key Position::key() const {
   return st->rule50 < 14 ? st->key
-                         : st->key ^ make_key((st->rule50 - 14) / 8);
+                         : st->rule50 < 86 ? st->key ^ make_key((st->rule50 - 14) / 8)
+                                           : st->key ^ make_key(st->rule50);
 }
 
 inline Key Position::pawn_key() const {

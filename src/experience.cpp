@@ -1591,7 +1591,7 @@ namespace Experience
                 << setw(2)     << setfill(' ')            << left << ++expCount << ": "
                 << setw(5)     << setfill(' ')            << left << UCI::move(pr.first->move, pos.is_chess960())
                 << ", depth: " << setw(2) << setfill(' ') << left << pr.first->depth
-                << ", eval: "  << setw(6) << setfill(' ') << left << UCI::value(pr.first->value);
+                << ", eval: "  << setw(6) << setfill(' ') << left << UCI::value(pr.first->value, pr.first->value);
 
             if (extended)
             {

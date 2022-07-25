@@ -61,7 +61,7 @@ void Thread::clear() {
   mainHistory.fill(0);
   captureHistory.fill(0);
   previousDepth = 0;
-  
+
   for (bool inCheck : { false, true })
       for (StatsType c : { NoCaptures, Captures })
       {
@@ -176,7 +176,6 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
   main()->wait_for_search_finished();
 
   main()->stopOnPonderhit = stop = false;
-  increaseDepth = true;
   main()->ponder = ponderMode;
   Search::Limits = limits;
   Search::RootMoves rootMoves;
@@ -203,8 +202,9 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
   // since they are read-only.
   for (Thread* th : *this)
   {
-      th->nodes = th->tbHits = th->nmpMinPly = th->bestMoveChanges = 0;
+      th->nodes = th->tbHits = th->nmpGuardV = th->nmpGuard = th->bestMoveChanges = 0;
       th->rootDepth = th->completedDepth = 0;
+      th->nmpSide = 0;
       th->rootMoves = rootMoves;
       th->rootPos.set(pos.fen(), pos.is_chess960(), &th->rootState, th);
       th->rootState = setupStates->back();
@@ -229,14 +229,14 @@ Thread* ThreadPool::get_best_thread() const {
         votes[th->rootMoves[0].pv[0]] +=
             (th->rootMoves[0].score - minScore + 14) * int(th->completedDepth);
 
-        if (abs(bestThread->rootMoves[0].score) >= VALUE_TB_WIN_IN_MAX_PLY)
+        if (abs(bestThread->rootMoves[0].score) > VALUE_MATE_IN_MAX_PLY)
         {
             // Make sure we pick the shortest mate / TB conversion or stave off mate the longest
             if (th->rootMoves[0].score > bestThread->rootMoves[0].score)
                 bestThread = th;
         }
-        else if (   th->rootMoves[0].score >= VALUE_TB_WIN_IN_MAX_PLY
-                 || (   th->rootMoves[0].score > VALUE_TB_LOSS_IN_MAX_PLY
+        else if (   th->rootMoves[0].score > VALUE_MATE_IN_MAX_PLY
+                 || (   th->rootMoves[0].score > VALUE_MATED_IN_MAX_PLY
                      && votes[th->rootMoves[0].pv[0]] > votes[bestThread->rootMoves[0].pv[0]]))
             bestThread = th;
     }

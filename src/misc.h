@@ -30,7 +30,7 @@
 
 namespace Stockfish {
 
-class Position; //Needed by is_game_decided
+class Position; 
 
 std::string engine_info(bool to_uci = false);
 std::string compiler_info();
@@ -168,7 +168,6 @@ private:
   T values_[MaxSize];
   std::size_t size_ = 0;
 };
-
 
 /// xorshift64star Pseudo-Random Number Generator
 /// This class is based on original code written and dedicated

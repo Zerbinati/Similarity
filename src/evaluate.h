@@ -30,10 +30,12 @@ class Position;
 
 namespace Eval {
 
+  void init(bool verify);
   std::string trace(Position& pos);
   Value evaluate(const Position& pos, int* complexity = nullptr);
 
   extern bool useNNUE;
+  extern bool useClassical;
   extern std::string currentEvalFileName;
 
   // The default net name MUST follow the format nn-[SHA256 first 12 digits].nnue
@@ -43,8 +45,8 @@ namespace Eval {
 
   namespace NNUE {
 
-    extern int MaterialValue;
-    extern int PositionalValue;
+    extern int MaterialisticEvaluationStrategy;
+    extern int PositionalEvaluationStrategy;
 
     std::string trace(Position& pos);
     Value evaluate(const Position& pos, bool adjusted = false, int* complexity = nullptr);

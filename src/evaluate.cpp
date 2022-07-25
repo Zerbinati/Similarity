@@ -61,10 +61,11 @@ namespace Stockfish {
 namespace Eval {
 
   bool useNNUE;
+  bool useClassical;
   string currentEvalFileName = "None";
 
-  int NNUE::MaterialValue = 0;
-  int NNUE::PositionalValue = 0;
+  int NNUE::MaterialisticEvaluationStrategy = 0;
+  int NNUE::PositionalEvaluationStrategy = 0;
 
   /// NNUE::init() tries to load a NNUE network at startup time, or when the engine
   /// receives a UCI command "setoption name EvalFile value nn-[a-z0-9]{12}.nnue"
@@ -76,13 +77,17 @@ namespace Eval {
 
   void NNUE::init() {
 
-    useNNUE = Options["Use NNUE"];
+    useNNUE = Options["PURE"];
+
     if (!useNNUE)
         return;
 
     string eval_file = string(Options["EvalFile"]);
     if (eval_file.empty())
         eval_file = EvalFileDefaultName;
+	
+    if (currentEvalFileName == eval_file)
+        return;
 
     #if defined(DEFAULT_NNUE_DIRECTORY)
     #define stringify2(x) #x
@@ -131,7 +136,7 @@ namespace Eval {
     if (useNNUE && currentEvalFileName != eval_file)
     {
 
-        string msg1 = "If the UCI option \"Use NNUE\" is set to true, network evaluation parameters compatible with the engine must be available.";
+        string msg1 = "If the UCI option \"PURE\" is set to true, network evaluation parameters compatible with the engine must be available.";
         string msg2 = "The option is set to true, but the network file " + eval_file + " was not loaded successfully.";
         string msg3 = "The UCI option EvalFile might need to specify the full path, including the directory name, to the network file.";
         string msg4 = "The default net can be downloaded from: https://tests.stockfishchess.org/api/nn/" + std::string(EvalFileDefaultName);
@@ -145,11 +150,6 @@ namespace Eval {
 
         exit(EXIT_FAILURE);
     }
-
-    if (useNNUE)
-        sync_cout << "info string NNUE evaluation using " << eval_file << " enabled" << sync_endl;
-    else
-        sync_cout << "info string classical evaluation enabled" << sync_endl;
   }
 }
 
@@ -985,7 +985,7 @@ namespace {
     // Initialize score by reading the incrementally updated scores included in
     // the position object (material + piece square tables) and the material
     // imbalance. Score is computed internally from the white point of view.
-    Score score = pos.psq_score() + me->imbalance() + pos.this_thread()->contempt;
+    Score score = pos.psq_score() + me->imbalance();
 
     // Probe the pawn hash table
     pe = Pawns::probe(pos);
@@ -1037,68 +1037,109 @@ make_v:
         Trace::add(MOBILITY, mobility[WHITE], mobility[BLACK]);
     }
 
-    // Evaluation grain
-    v = (v / 16) * 16;
-
     // Side to move point of view
-    v = (pos.side_to_move() == WHITE ? v : -v);
+    return (pos.side_to_move() == WHITE ? v : -v);
+  }
 
-    return v;
+
+  /// Fisher Random Chess: correction for cornered bishops, to fix chess960 play with NNUE
+
+  Value fix_FRC(const Position& pos) {
+
+    constexpr Bitboard Corners =  1ULL << SQ_A1 | 1ULL << SQ_H1 | 1ULL << SQ_A8 | 1ULL << SQ_H8;
+
+    if (!(pos.pieces(BISHOP) & Corners))
+        return VALUE_ZERO;
+
+    int correction = 0;
+
+    if (   pos.piece_on(SQ_A1) == W_BISHOP
+        && pos.piece_on(SQ_B2) == W_PAWN)
+        correction -= CorneredBishop;
+
+    if (   pos.piece_on(SQ_H1) == W_BISHOP
+        && pos.piece_on(SQ_G2) == W_PAWN)
+        correction -= CorneredBishop;
+
+    if (   pos.piece_on(SQ_A8) == B_BISHOP
+        && pos.piece_on(SQ_B7) == B_PAWN)
+        correction += CorneredBishop;
+
+    if (   pos.piece_on(SQ_H8) == B_BISHOP
+        && pos.piece_on(SQ_G7) == B_PAWN)
+        correction += CorneredBishop;
+
+    return pos.side_to_move() == WHITE ?  Value(3 * correction)
+                                       : -Value(3 * correction);
   }
 
 } // namespace Eval
 
+void Eval::init(bool verify)
+{
+    NNUE::init(); //This will also initialize 'useNNUE' variable
+    useClassical = Options["Classical"];
+
+    if (verify)
+    {
+        if(useNNUE)
+            NNUE::verify();
+
+        if (!useNNUE && !useClassical)
+        {
+            sync_cout << "info string ERROR: At least one of NNUE or Classical evaluation should be enabled for the engine to continue" << sync_endl;
+            exit(EXIT_FAILURE);
+        }
+
+        std::stringstream ss;
+
+        if (useNNUE && useClassical)
+            ss << "info string Hybrid evaluation with: (NET " << Eval::currentEvalFileName << ") is loaded successfully!";
+        else if (useNNUE)
+            ss << "info string Pure NNUE evaluation with: (NET " << currentEvalFileName << ") is enabled";
+        else if (useClassical)
+            ss << "info string Only Classic evaluation enabled";
+        else
+            assert(false); //Should never reach here!
+
+        sync_cout << ss.str() << sync_endl;
+    }
+}
 
 /// evaluate() is the evaluator for the outer world. It returns a static
 /// evaluation of the position from the point of view of the side to move.
 
 Value Eval::evaluate(const Position& pos, int* complexity) {
 
-  Value v;
+  assert(Eval::useClassical || Eval::useNNUE);
+
+  int nnueComplexity = 0;
+
+  Value v = useNNUE ? NNUE::evaluate(pos, true, &nnueComplexity)
+                    : Evaluation<NO_TRACE>(pos).value();
+
   Value psq = pos.psq_eg_stm();
-  // Deciding between classical and NNUE eval (~10 Elo): for high PSQ imbalance we use classical,
-  // but we switch to NNUE during long shuffling or with high material on the board.
-  bool useClassical =    (pos.this_thread()->depth > 9 || pos.count<ALL_PIECES>() > 7)
-                      && abs(psq) * 5 > (856 + pos.non_pawn_material() / 64) * (10 + pos.rule50_count());
 
-  // Deciding between classical and NNUE eval (~10 Elo): for high PSQ imbalance we use classical,
-  // but we switch to NNUE during long shuffling or with high material on the board.
-  if (!useNNUE || useClassical)
+  if (useNNUE)
   {
-      v = Evaluation<NO_TRACE>(pos).value();
-      useClassical = abs(v) >= 297;
-  }
+       // Blend nnue complexity with (semi)classical complexity
+       nnueComplexity = (104 * nnueComplexity + 131 * abs(v - psq)) / 256;
 
-  // If result of a classical evaluation is much lower than threshold fall back to NNUE
-  if (useNNUE && !useClassical)
-  {
-       int nnueComplexity;
-       int scale = 1064 + 106 * pos.non_pawn_material() / 5120;
-
-       Value nnue = NNUE::evaluate(pos, true, &nnueComplexity);
-       nnueComplexity = (104 * nnueComplexity + 131 * abs(nnue - psq)) / 256;
        if (complexity) // Return hybrid NNUE complexity to caller
            *complexity = nnueComplexity;
-       v = nnue * scale / 1024 ;
-	   //locutus patch
-	   Phase phase = Material::probe(pos)->game_phase();
-       Value contempt = (  mg_value(pos.this_thread()->staticContempt) * int(phase)
-                           + eg_value(pos.this_thread()->staticContempt) * int(PHASE_MIDGAME - phase)) / PHASE_MIDGAME;
-	   v = v + (pos.side_to_move() == WHITE ? contempt : -contempt);
-	   //end locutus patch
-	   
 
+       if (pos.is_chess960())
+           v += fix_FRC(pos);
   }
 
-  // Damp down the evaluation linearly when shuffling
-  v = v * (195 - pos.rule50_count()) / 211;
+  v = v * std::max(1, (101 - pos.rule50_count())) / 101;
 
-  // Guarantee evaluation does not hit the tablebase range
-  v = std::clamp(v, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
+  // Do not return evals greater than a TB result
+  v = std::clamp(v, -VALUE_TB_WIN + 8 * PawnValueEg, VALUE_TB_WIN - 8 * PawnValueEg);
 
   // When not using NNUE, return classical complexity to caller
-  if (complexity && (!useNNUE || useClassical))
-       *complexity = abs(v - psq);
+  if (complexity && !useNNUE)
+      *complexity = abs(v - psq);
 
   return v;
 }
@@ -1121,9 +1162,7 @@ std::string Eval::trace(Position& pos) {
   std::memset(scores, 0, sizeof(scores));
 
   // Reset any global variable used in eval
-  pos.this_thread()->depth           = 0;
-  pos.this_thread()->contempt = SCORE_ZERO; // Reset any dynamic contempt
-  pos.this_thread()->bestValue = VALUE_ZERO; // Reset bestValue for lazyEval
+  pos.this_thread()->bestValue       = VALUE_ZERO;
 
   v = Evaluation<TRACE>(pos).value();
 

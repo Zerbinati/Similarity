@@ -62,22 +62,23 @@ public:
   size_t pvIdx, pvLast;
   RunningAverage complexityAverage;
   std::atomic<uint64_t> nodes, tbHits, bestMoveChanges;
-  int selDepth, nmpMinPly;
-  Color nmpColor;
   Value bestValue;
+  int selDepth;
+  bool nmpGuard, nmpGuardV, nmpSide;
 
   Position rootPos;
   StateInfo rootState;
   Search::RootMoves rootMoves;
-  Depth rootDepth, completedDepth, depth, previousDepth;
+  Depth rootDepth, completedDepth, previousDepth;
   Value rootDelta;
   CounterMoveHistory counterMoves;
   ButterflyHistory mainHistory;
   CapturePieceToHistory captureHistory;
   ContinuationHistory continuationHistory[2][2];
-  Score contempt;
-  Score staticContempt;  
-};
+  int horx;
+  int preca;
+  int precb;
+  };
 
 
 /// MainThread is a derived class specific for main thread
@@ -116,7 +117,7 @@ struct ThreadPool : public std::vector<Thread*> {
   void start_searching();
   void wait_for_search_finished() const;
 
-  std::atomic_bool stop, increaseDepth;
+  std::atomic_bool stop;
 
 private:
   StateListPtr setupStates;

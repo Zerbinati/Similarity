@@ -250,7 +250,7 @@ string engine_info(bool to_uci) {
   string month, day, year;
   stringstream ss, date(__DATE__); // From compiler, format is "Sep 21 2008"
 
-  ss << "HypnoS " << Version << setfill('0');
+  ss << "HypnoS Fmpv " << Version << setfill('0');
 
   if (Version.empty())
   {
@@ -1378,10 +1378,9 @@ void bindThisThread(size_t idx) {
   if (!fun4 || !fun5)
   {
       GROUP_AFFINITY affinity;
-      if (fun2(node, &affinity)){                                                 // GetNumaNodeProcessorMaskEx
-		sync_cout << "info string Binding thread " << idx << " to node " << node << sync_endl;
-	  }
-	  fun3(GetCurrentThread(), &affinity, nullptr);                          // SetThreadGroupAffinity
+      if (fun2(node, &affinity))                                                 // GetNumaNodeProcessorMaskEx
+	  sync_cout << "info string Binding thread " << idx << " to node " << node << sync_endl;
+          fun3(GetCurrentThread(), &affinity, nullptr);                          // SetThreadGroupAffinity
   }
   else
   {
