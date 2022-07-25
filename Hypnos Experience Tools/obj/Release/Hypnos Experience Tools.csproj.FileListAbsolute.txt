@@ -1,0 +1,12 @@
+C:\Users\zerbi\Downloads\Hypnos Experience Tools\bin\Release\Hypnos Experience Tools.exe.config
+C:\Users\zerbi\Downloads\Hypnos Experience Tools\bin\Release\Hypnos Experience Tools.exe
+C:\Users\zerbi\Downloads\Hypnos Experience Tools\bin\Release\Hypnos Experience Tools.pdb
+C:\Users\zerbi\Downloads\Hypnos Experience Tools\obj\Release\Hypnos.Experience.Tools.DefragControl.resources
+C:\Users\zerbi\Downloads\Hypnos Experience Tools\obj\Release\Hypnos.Experience.Tools.ExpFromPgnControl.resources
+C:\Users\zerbi\Downloads\Hypnos Experience Tools\obj\Release\Hypnos.Experience.Tools.MainForm.resources
+C:\Users\zerbi\Downloads\Hypnos Experience Tools\obj\Release\Hypnos.Experience.Tools.MergeControl.resources
+C:\Users\zerbi\Downloads\Hypnos Experience Tools\obj\Release\Hypnos.Experience.Tools.Properties.Resources.resources
+C:\Users\zerbi\Downloads\Hypnos Experience Tools\obj\Release\Hypnos Experience Tools.csproj.GenerateResource.cache
+C:\Users\zerbi\Downloads\Hypnos Experience Tools\obj\Release\Hypnos Experience Tools.csproj.CoreCompileInputs.cache
+C:\Users\zerbi\Downloads\Hypnos Experience Tools\obj\Release\Hypnos Experience Tools.exe
+C:\Users\zerbi\Downloads\Hypnos Experience Tools\obj\Release\Hypnos Experience Tools.pdb
