@@ -487,6 +487,8 @@ void Thread::search() {
                                            : -make_score(ct, ct / 2));
 
   int searchAgainCounter = 0;
+  
+  rootDepth += id() % 4;
 
   // Iterative deepening loop until requested to stop or the target depth is reached
   while (   ++rootDepth < MAX_PLY
