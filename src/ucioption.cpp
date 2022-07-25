@@ -44,10 +44,6 @@ void on_hash_size(const Option& o) { TT.resize(size_t(o)); }
 void on_logger(const Option& o) { start_logger(o); }
 void on_threads(const Option& o) { Threads.set(size_t(o)); }
 void on_tb_path(const Option& o) { Tablebases::init(o); }
-void on_HashFile(const Option& o) { TT.set_hash_file_name(o); }
-void SaveHashtoFile(const Option&) { TT.save(); }
-void LoadHashfromFile(const Option&) { TT.load(); }
-void LoadEpdToHash(const Option&) { TT.load_epd_to_hash(); }
 void on_exp_enabled(const Option& /*o*/) { Experience::init(); }
 void on_exp_file(const Option& /*o*/) { Experience::init(); }
 void on_use_NNUE(const Option& ) { Eval::NNUE::init(); }
@@ -76,15 +72,9 @@ void init(OptionsMap& o) {
   o["Clean Search"]                      << Option(false);
   o["Ponder"]                            << Option(false);
   o["MultiPV"]                           << Option(1, 1, 500);
-  o["Use ChessBase MultiPV"]             << Option(false);
   o["Move Overhead"]                     << Option(10, 0, 5000);
   o["nodestime"]                         << Option(0, 0, 10000);
   o["UCI_Chess960"]                      << Option(false);
-  o["NeverClearHash"]                    << Option(false);
-  o["HashFile"]                          << Option("Hypnos.hsh", on_HashFile);
-  o["SaveHashtoFile"]                    << Option(SaveHashtoFile);
-  o["LoadHashfromFile"]                  << Option(LoadHashfromFile);
-  o["LoadEpdToHash"]                     << Option(LoadEpdToHash);
   o["UCI_ShowWDL"]                       << Option(false);
   o["SyzygyPath"]                        << Option("<empty>", on_tb_path);
   o["Syzygy50MoveRule"]                  << Option(true);
@@ -97,12 +87,6 @@ void init(OptionsMap& o) {
   o["Experience Book Eval Importance"]   << Option(5, 0, 10);
   o["Experience Book Min Depth"]         << Option(27, EXP_MIN_DEPTH, 64);
   o["Experience Book Max Moves"]         << Option(20, 1, 100);
-  o["Fluid MultiPV"]                     << Option(false);
-  o["Set Fluid MultiPV"]                 << Option(1, 1, 500);
-  o["Fmpv Difference"]                   << Option(10, 0, 1000);
-  o["Fmpv Max MultiPV"]                  << Option(4, 2, 16);
-  o["Precision"]                         << Option(false);
-  o["Search Pruning Multiple MultiPV"]   << Option(0, 0, 4);
   o["Materialistic Evaluation Strategy"] << Option(0, -50, 50, on_materialistic_evaluation_strategy);
   o["Positional Evaluation Strategy"]    << Option(0, -50, 50, on_positional_evaluation_strategy);
   o["PURE"]                              << Option(true, on_use_NNUE);

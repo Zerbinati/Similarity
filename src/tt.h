@@ -83,17 +83,10 @@ class TranspositionTable {
 public:
  ~TranspositionTable() { aligned_large_pages_free(table); }
   void new_search() { generation8 += GENERATION_DELTA; } // Lower bits are used for other things
-  void infinite_search() { generation8 += GENERATION_DELTA; }
-  uint8_t generation() const { return generation8; }
   TTEntry* probe(const Key key, bool& found) const;
   int hashfull() const;
   void resize(size_t mbSize);
   void clear();
-  void set_hash_file_name(const std::string& fname);
-  void save();
-  void load();
-  void load_epd_to_hash();
-  std::string hashfilename = "Hypnos.hsh";
 
   // The key is used to get the index of the cluster
   TTEntry* first_entry(const Key key) const {

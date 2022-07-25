@@ -75,9 +75,6 @@ public:
   ButterflyHistory mainHistory;
   CapturePieceToHistory captureHistory;
   ContinuationHistory continuationHistory[2][2];
-  int horx;
-  int preca;
-  int precb;
   };
 
 

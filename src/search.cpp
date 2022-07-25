@@ -41,11 +41,6 @@ namespace Stockfish {
 namespace Search {
 
   LimitsType Limits;
-int corr;
-int preca;
-int precb;
-
-  size_t multiPV;
 }
 
 namespace Tablebases {
@@ -147,9 +142,6 @@ void Search::init() {
 
 void Search::clear() {
 
-  if (Options["NeverClearHash"])
-	return;
-
   Threads.main()->wait_for_search_finished();
 
   Time.availableNodes = 0;
@@ -179,12 +171,7 @@ void MainThread::search() {
 
   Color us = rootPos.side_to_move();
   Time.init(Limits, us, rootPos.game_ply());
-  if (!Limits.infinite)
   TT.new_search();
-  else
-    TT.infinite_search();
-
-  Eval::init(true);
 
   Move bookMove = MOVE_NONE;
 
@@ -311,8 +298,7 @@ void MainThread::search() {
 
   Thread* bestThread = this;
 
-  bool useChessBaseMultiPV=Options["Use ChessBase MultiPV"];
-  if (   ((useChessBaseMultiPV && (int(Options["MultiPV"]) == 1))|| (!useChessBaseMultiPV && (int(Options["Set Fluid MultiPV"]) == 1)))
+  if (    int(Options["MultiPV"]) == 1
       && !Limits.depth
       &&  rootMoves[0].pv[0] != MOVE_NONE)
       bestThread = Threads.get_best_thread();
@@ -439,33 +425,11 @@ void Thread::search() {
           for (int i = 0; i < 4; ++i)
               mainThread->iterValue[i] = mainThread->bestPreviousScore;
   }
-  
-  if (multiPV == 1)    {
-              corr = Options["Search Pruning Multiple MultiPV"];
-    }
-  else  corr = 0;
 
-
-  if (corr) multiPV = size_t(pow(2, corr));
-
-  bool useChessBaseMultiPV=Options["Use ChessBase MultiPV"];
-  size_t multiPV = (useChessBaseMultiPV)?size_t(Options["MultiPV"]):size_t(Options["Set Fluid MultiPV"]);
+  size_t multiPV = size_t(Options["MultiPV"]);
 
   multiPV = std::min(multiPV, rootMoves.size());
 
-preca = 0;
-precb = 0;
-
-if(Options["Precision"]){
-preca = 2;
-precb = 1;}
-
-if(!Options["Precision"]){
-preca = 0;
-precb = 0;}
-
-int fmlevel = int(Options["Fmpv Difference"]);
-int flnumber = int(Options["Fmpv Max MultiPV"]);
   complexityAverage.set(174, 1);
 
   // Iterative deepening loop until requested to stop or the target depth is reached
@@ -486,95 +450,6 @@ int flnumber = int(Options["Fmpv Max MultiPV"]);
       pvLast = 0;
 
       // MultiPV loop. We perform a full root search for each PV line
-Value a1 = rootMoves[0].score + Value(10000) - Value(fmlevel);
-if(a1 == Value(0)){a1 = Value(10000) - Value(fmlevel);}
-Value a2 = rootMoves[1].score + Value(10000);
-if(a2 == Value(0)){a2 = Value(10000);}
-Value a3 = rootMoves[2].score + Value(10000);
-if(a3 == Value(0)){a3 = Value(10000);}
-Value a4 = rootMoves[3].score + Value(10000);
-if(a4 == Value(0)){a4 = Value(10000);}
-Value a5 = rootMoves[4].score + Value(10000);
-if(a5 == Value(0)){a5 = Value(10000);}
-Value a6 = rootMoves[5].score + Value(10000);
-if(a6 == Value(0)){a6 = Value(10000);}
-Value a7 = rootMoves[6].score + Value(10000);
-if(a7 == Value(0)){a7 = Value(10000);}
-Value a8 = rootMoves[7].score + Value(10000);
-if(a8 == Value(0)){a8 = Value(10000);}
-Value a9 = rootMoves[8].score + Value(10000);
-if(a9 == Value(0)){a9 = Value(10000);}
-Value a10 = rootMoves[9].score + Value(10000);
-if(a10 == Value(0)){a10 = Value(10000);}
-Value a11 = rootMoves[10].score + Value(10000);
-if(a11 == Value(0)){a11 = Value(10000);}
-Value a12 = rootMoves[11].score + Value(10000);
-if(a12 == Value(0)){a12 = Value(10000);}
-Value a13 = rootMoves[12].score + Value(10000);
-if(a13 == Value(0)){a13 = Value(10000);}
-Value a14 = rootMoves[13].score + Value(10000);
-if(a14 == Value(0)){a14 = Value(10000);}
-Value a15 = rootMoves[14].score + Value(10000);
-if(a15 == Value(0)){a15 = Value(10000);}
-Value a16 = rootMoves[15].score + Value(10000);
-if(a16 == Value(0)){a16 = Value(10000);}
-
-if(Options["Set Fluid MultiPV"] == 1 && Options["Fluid MultiPV"]){
-	
-if(a1 <= a16 && rootMoves.size() >= 15){
-multiPV = 15;}
-
-else if (a1 > a15 &&  a1 <= a14 && rootMoves.size() >= 14){
-multiPV = 14;}
-
-else if (a1 > a14 &&  a1 <= a13 && rootMoves.size() >= 13){
-multiPV = 13;}
-
-else if (a1 > a13 &&  a1 <= a12 && rootMoves.size() >= 12){
-multiPV = 12;}
-
-else if (a1 > a12 &&  a1 <= a11 && rootMoves.size() >= 11){
-multiPV = 11;}
-
-else if (a1 > a11 &&  a1 <= a10 && rootMoves.size() >= 10){
-multiPV = 10;}
-
-else if (a1 > a10 &&  a1 <= a9 && rootMoves.size() >= 9){
-multiPV = 9;}
-
-else if (a1 > a9 &&  a1 <= a8 && rootMoves.size() >= 8){
-multiPV = 8;}
-
-else if (a1 > a8 &&  a1 <= a7 && rootMoves.size() >= 7){
-multiPV = 7;}
-
-else if (a1 > a7 &&  a1 <= a6 && rootMoves.size() >= 6){
-multiPV = 6;}
-
-else if (a1 > a6 &&  a1 <= a5 && rootMoves.size() >= 5){
-multiPV = 5;}
-
-else if (a1 > a5 &&  a1 <= a4 && rootMoves.size() >= 4){
-multiPV = 4;}
-
-else if (a1 > a4 &&  a1 <= a3 && rootMoves.size() >= 3){
-multiPV = 3;}
-
-else if (a1 > a3 &&  a1 <= a2 && rootMoves.size() >= 2){
-multiPV = 2;}
-
-else if (a1 <= a2 && rootMoves.size() >= 1){
-multiPV = 1;}
-
-else{multiPV = size_t(Options["Set Fluid MultiPV"]);}
-
-if(multiPV > (size_t)(flnumber)){
-multiPV = (size_t)(flnumber);}
-
-}
-
-horx = multiPV;
-
       for (pvIdx = 0; pvIdx < multiPV && !Threads.stop; ++pvIdx)
       {
           if (pvIdx == pvLast)
@@ -1057,7 +932,6 @@ namespace {
        // If eval is really low check with qsearch if it can exceed alpha, if it can't,
        // return a fail low.
        if (   depth <= 7
-	       &&  ss->moveCount >= pos.this_thread()->precb
            && !ourMove
            && eval < alpha - 348 - 258 * depth * depth)
        {
@@ -1068,7 +942,6 @@ namespace {
 
        // Step 8. Futility pruning: child node (~25 Elo)
        if (    depth < 8
-	       && (ss-1)->moveCount >= pos.this_thread()->preca 
            && !ss->ttPv
            && !kingDanger
            && !gameCycle
@@ -1304,7 +1177,6 @@ namespace {
       if (  !PvNode
           && (ss->ply > 2 || lmPrunable)
           && pos.non_pawn_material(us)
-		  &&  ss->moveCount >= pos.this_thread()->precb
           && (bestValue < VALUE_MATE_IN_MAX_PLY || !ourMove)
           && bestValue > VALUE_MATED_IN_MAX_PLY)
       {
@@ -1324,7 +1196,6 @@ namespace {
                   && !givesCheck
                   && lmrDepth < 3
                   && !ss->inCheck
-				  &&  ss->moveCount >= pos.this_thread()->precb 
                   && ss->staticEval + 281 + 179 * lmrDepth + PieceValue[EG][pos.piece_on(to_sq(move))]
                    + captureHistory[movedPiece][to_sq(move)][type_of(pos.piece_on(to_sq(move)))] / 6 < alpha)
                   continue;
@@ -1341,7 +1212,6 @@ namespace {
 
               // Continuation history based pruning (~2 Elo)
               if (   lmrDepth < 5
-			      &&  ss->moveCount >= pos.this_thread()->precb
                   && history < -3875 * (depth - 1))
                   continue;
 
@@ -1350,7 +1220,6 @@ namespace {
               // Futility pruning: parent node (~9 Elo)
               if (   !ss->inCheck
                   && lmrDepth < 3
-				  &&  ss->moveCount >= pos.this_thread()->precb
                   && ss->staticEval + 122 + 138 * lmrDepth + history / 60 <= alpha
                   &&  (*contHist[0])[movedPiece][to_sq(move)]
                     + (*contHist[1])[movedPiece][to_sq(move)]
@@ -1359,7 +1228,7 @@ namespace {
                   continue;
 
               // Prune moves with negative SEE (~3 Elo)
-			  if (!pos.see_ge(move, Value(-(22 - std::min(lmrDepth, 18)) * lmrDepth * lmrDepth)) && ss->moveCount >= pos.this_thread()->precb)  
+              if (!pos.see_ge(move, Value(-24 * lmrDepth * (lmrDepth + 1))))
                   continue;
           }
           }
@@ -1584,8 +1453,7 @@ namespace {
               // This information is used for time management. In MultiPV mode,
               // we must take care to only do this for the first PV line.
               if (   moveCount > 1
-                  && !thisThread->pvIdx
-                  && thisThread->horx == 1)
+                  && !thisThread->pvIdx)
                   ++thisThread->bestMoveChanges;
           }
           else
@@ -2146,8 +2014,8 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
   TimePoint elapsed = Time.elapsed() + 1;
   const RootMoves& rootMoves = pos.this_thread()->rootMoves;
   size_t pvIdx = pos.this_thread()->pvIdx;
-  bool useChessBaseMultiPV=Options["Use ChessBase MultiPV"];
-  size_t multiPV = std::min((useChessBaseMultiPV?(size_t)Options["MultiPV"]:(size_t)Options["Set Fluid MultiPV"]), rootMoves.size());
+															
+  size_t multiPV = std::min((size_t)Options["MultiPV"], rootMoves.size());
   uint64_t nodesSearched = Threads.nodes_searched();
   uint64_t tbHits = Threads.tb_hits() + (TB::RootInTB ? rootMoves.size() : 0);
 
