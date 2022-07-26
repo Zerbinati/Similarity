@@ -1073,7 +1073,7 @@ Value Eval::evaluate(const Position& pos, int* complexity) {
   if (useNNUE && !useClassical)
   {
        int nnueComplexity;
-       int scale = 1064 + 106 * pos.non_pawn_material() / 5120;
+       int scale = 900 + 215 * pos.non_pawn_material() / 5120;
 
        Value nnue = NNUE::evaluate(pos, true, &nnueComplexity);
        nnueComplexity = (104 * nnueComplexity + 131 * abs(nnue - psq)) / 256;
