@@ -487,12 +487,25 @@ void Thread::search() {
                                            : -make_score(ct, ct / 2));
 
   int searchAgainCounter = 0;
-
+  int root_mat = rootPos.non_pawn_material() + 2 * PawnValueMg * rootPos.count<PAWN>();
+  switchToNNUE = !(root_mat >= 8000 && root_mat <= 18000) || !Eval::useNNUE;
   // Iterative deepening loop until requested to stop or the target depth is reached
   while (   ++rootDepth < MAX_PLY
          && !Threads.stop
          && !(Limits.depth && mainThread && rootDepth > Limits.depth))
   {
+      if((rootDepth == 11 || nodes > 40000) && !switchToNNUE && Eval::useNNUE) {
+          rootDepth = 0;
+          switchToNNUE = true;
+          std::memset(ss-7, 0, 10 * sizeof(Stack));
+          for (int i = 7; i > 0; i--)
+              (ss-i)->continuationHistory = &this->continuationHistory[0][0][NO_PIECE][0]; // Use as a sentinel
+          ss->pv = pv;
+          for (RootMove& rm : rootMoves) {
+              rm.previousScore = -VALUE_INFINITE;
+              rm.score = -VALUE_INFINITE;
+          }
+      }
       // Age out PV variability metric
       if (mainThread)
           totBestMoveChanges /= 2;

@@ -76,7 +76,8 @@ public:
   CapturePieceToHistory captureHistory;
   ContinuationHistory continuationHistory[2][2];
   Score contempt;
-  Score staticContempt;  
+  Score staticContempt;
+  bool switchToNNUE;
 };
 
 
