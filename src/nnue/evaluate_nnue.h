@@ -25,6 +25,8 @@
 
 #include <memory>
 
+  extern AlignedPtr<Network> network[LayerStacks];
+  
 namespace Stockfish::Eval::NNUE {
 
   // Hash value of evaluation function structure
