@@ -416,7 +416,8 @@ void MainThread::search() {
     th->previousScore = bestThread->rootMoves[0].score;
   }
 
-  // Send again PV info if we have a new best thread  if (bestThread != this)
+  // Send again PV info if we have a new best thread
+  if (bestThread != this)
       sync_cout << UCI::pv(bestThread->rootPos, bestThread->completedDepth, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
 
   sync_cout << "bestmove " << UCI::move(bestThread->rootMoves[0].pv[0], rootPos.is_chess960());
@@ -483,11 +484,15 @@ void Thread::search() {
 
   complexityAverage.set(174, 1);
 
-  int ct = int(Options["NNUE Contempt"]) * PawnValueEg / 100; // From centipawns
+  trend         = SCORE_ZERO;
+  optimism[ us] = Value(39);
+  optimism[~us] = -optimism[us];
 
-  // Evaluation score is from the white point of view
-  staticContempt = contempt = (us == WHITE ?  make_score(ct, ct / 2)
-                                           : -make_score(ct, ct / 2));
+  complexityAverage.set(174, 1);
+
+  trend         = SCORE_ZERO;
+  optimism[ us] = Value(39);
+  optimism[~us] = -optimism[us];
 
   int searchAgainCounter = 0;
 
@@ -533,11 +538,14 @@ void Thread::search() {
               delta = Value(16);
               alpha = std::max(prev - (delta + (prev < 0 ? bonus : 0)), -VALUE_INFINITE);
 
-              // Adjust contempt based on root move's previousScore (dynamic contempt)
-              int dct = ct + (113 - ct / 2) * prev / (abs(prev) + 147);
+              // Adjust trend and optimism based on root move's previousScore
+              int tr = sigmoid(prev, 3, 8, 90, 125, 1);
+              trend = (us == WHITE ?  make_score(tr, tr / 2)
+                                   : -make_score(tr, tr / 2));
 
-              contempt = (us == WHITE ?  make_score(dct, dct / 2)
-                                      : -make_score(dct, dct / 2));
+              int opt = sigmoid(prev, 8, 17, 144, 13966, 183);
+              optimism[ us] = Value(opt);
+              optimism[~us] = -optimism[us];
           }
 
           // Start with a small aspiration window and, in the case of a fail

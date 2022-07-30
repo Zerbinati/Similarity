@@ -985,7 +985,7 @@ namespace {
     // Initialize score by reading the incrementally updated scores included in
     // the position object (material + piece square tables) and the material
     // imbalance. Score is computed internally from the white point of view.
-    Score score = pos.psq_score() + me->imbalance() + pos.this_thread()->contempt;
+    Score score = pos.psq_score() + me->imbalance() + pos.this_thread()->trend;
 
     // Probe the pawn hash table
     pe = Pawns::probe(pos);
@@ -1055,6 +1055,7 @@ make_v:
 Value Eval::evaluate(const Position& pos, Value rootEval, int* complexity) {
 
   Value v;
+  Color stm = pos.side_to_move();
   Value psq = pos.psq_eg_stm();
   // Deciding between classical and NNUE eval (~10 Elo): for high PSQ imbalance we use classical,
   // but we switch to NNUE during long shuffling or with high material on the board.
@@ -1072,20 +1073,16 @@ Value Eval::evaluate(const Position& pos, Value rootEval, int* complexity) {
   {
        int nnueComplexity;
        int scale = 1064 + 106 * pos.non_pawn_material() / 5120;
+       Value optimism = pos.this_thread()->optimism[stm];
 
        Value nnue = NNUE::evaluate(pos, true, &nnueComplexity);
+       // Blend nnue complexity with (semi)classical complexity
        nnueComplexity = (104 * nnueComplexity + 131 * abs(nnue - psq)) / 256;
        if (complexity) // Return hybrid NNUE complexity to caller
            *complexity = nnueComplexity;
-       v = nnue * scale / 1024 ;
-	   //locutus patch
-	   Phase phase = Material::probe(pos)->game_phase();
-       Value contempt = (  mg_value(pos.this_thread()->staticContempt) * int(phase)
-                           + eg_value(pos.this_thread()->staticContempt) * int(PHASE_MIDGAME - phase)) / PHASE_MIDGAME;
-	   v = v + (pos.side_to_move() == WHITE ? contempt : -contempt);
-	   //end locutus patch
-	   
 
+       optimism = optimism * (269 + nnueComplexity) / 256;
+       v = (nnue * scale + optimism * (scale - 754)) / 1024;
   }
 
   // Damp down the evaluation linearly when shuffling
@@ -1120,8 +1117,10 @@ std::string Eval::trace(Position& pos) {
 
   // Reset any global variable used in eval
   pos.this_thread()->depth           = 0;
-  pos.this_thread()->contempt = SCORE_ZERO; // Reset any dynamic contempt
-  pos.this_thread()->bestValue = VALUE_ZERO; // Reset bestValue for lazyEval
+  pos.this_thread()->trend           = SCORE_ZERO;
+  pos.this_thread()->bestValue       = VALUE_ZERO;
+  pos.this_thread()->optimism[WHITE] = VALUE_ZERO;
+  pos.this_thread()->optimism[BLACK] = VALUE_ZERO;
 
   v = Evaluation<TRACE>(pos).value();
 
