@@ -76,11 +76,6 @@ public:
   CapturePieceToHistory captureHistory;
   ContinuationHistory continuationHistory[2][2];
   Score trend;
-
-  // save info 
-  Search::RootMoves rootMovesCopy;
-  Depth completedDepthCopy;
-  
 };
 
 

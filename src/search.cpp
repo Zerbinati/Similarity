@@ -407,20 +407,23 @@ void MainThread::search() {
       }
   }
 
-  bestPreviousScore = bestThread->rootMovesCopy[0].score;
-  bestPreviousAverageScore = bestThread->rootMovesCopy[0].averageScore;
+  bestPreviousScore = bestThread->rootMoves[0].score;
+  bestPreviousAverageScore = bestThread->rootMoves[0].averageScore;
 
   for (Thread* th : Threads)
-    th->previousDepth = bestThread->completedDepthCopy;
+  {
+    th->previousDepth = bestThread->completedDepth;
+    th->previousScore = bestThread->rootMoves[0].score;
+  }
 
   // Send again PV info if we have a new best thread
   if (bestThread != this)
-      sync_cout << UCI::pv(rootPos, bestThread->completedDepthCopy, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
+      sync_cout << UCI::pv(bestThread->rootPos, bestThread->completedDepth, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
 
-  sync_cout << "bestmove " << UCI::move(bestThread->rootMovesCopy[0].pv[0], rootPos.is_chess960());
+  sync_cout << "bestmove " << UCI::move(bestThread->rootMoves[0].pv[0], rootPos.is_chess960());
 
-  if (bestThread->rootMovesCopy[0].pv.size() > 1 || bestThread->rootMovesCopy[0].extract_ponder_from_tt(rootPos))
-      std::cout << " ponder " << UCI::move(bestThread->rootMovesCopy[0].pv[1], rootPos.is_chess960());
+  if (bestThread->rootMoves[0].pv.size() > 1 || bestThread->rootMoves[0].extract_ponder_from_tt(rootPos))
+      std::cout << " ponder " << UCI::move(bestThread->rootMoves[0].pv[1], rootPos.is_chess960());
 
   std::cout << sync_endl;
 }
@@ -455,7 +458,7 @@ void Thread::search() {
 
   ss->pv = pv;
   ss->disableNullMove = false;
-
+  
   bestValue = delta = alpha = -VALUE_INFINITE;
   beta = VALUE_INFINITE;
 
@@ -484,8 +487,15 @@ void Thread::search() {
   trend         = SCORE_ZERO;
   optimism[ us] = Value(39);
   optimism[~us] = -optimism[us];
-  
-  bool prepareForNextSearch = false;
+
+  complexityAverage.set(174, 1);
+
+  trend         = SCORE_ZERO;
+  optimism[ us] = Value(39);
+  optimism[~us] = -optimism[us];
+
+  int searchAgainCounter = 0;
+
   // Iterative deepening loop until requested to stop or the target depth is reached
   while (   ++rootDepth < MAX_PLY
          && !Threads.stop
@@ -502,30 +512,9 @@ void Thread::search() {
 
       size_t pvFirst = 0;
       pvLast = 0;
-      
-      rootMovesCopy = rootMoves;
-      completedDepthCopy = completedDepth;
 
-      if (   !mainThread 
-          && !Threads.increaseDepth 
-          && prepareForNextSearch == false 
-          && rootMoves[0].pv.size() >= 2)
-      {
-        StateInfo st;
-        ASSERT_ALIGNED(&st, Eval::NNUE::CacheLineSize);
-        rootPos.do_move(rootMoves[0].pv[0], st);
-        rootPos.do_move(rootMoves[0].pv[1], st);
-        Threads.increaseDepth = true;
-        prepareForNextSearch = true;
-        rootDepth = 0;
-        bestValue = delta = alpha = -VALUE_INFINITE;
-        beta = VALUE_INFINITE;
-        complexityAverage.set(174, 1);
-        trend         = SCORE_ZERO;
-        optimism[ us] = Value(39);
-        optimism[~us] = -optimism[us];
-      }
-      
+      if (!Threads.increaseDepth)
+         searchAgainCounter++;
 
       // MultiPV loop. We perform a full root search for each PV line
       for (pvIdx = 0; pvIdx < multiPV && !Threads.stop; ++pvIdx)
@@ -566,7 +555,7 @@ void Thread::search() {
           {
               // Adjust the effective depth searched, but ensuring at least one effective increment for every
               // four searchAgain steps (see issue #2717).
-              Depth adjustedDepth = std::max(1, rootDepth);
+              Depth adjustedDepth = std::max(1, rootDepth - searchAgainCounter);
               bestValue = Stockfish::search<Root>(rootPos, ss, alpha, beta, adjustedDepth, false);
 
               // Bring the best move to the front. It is critical that sorting
@@ -679,7 +668,6 @@ void Thread::search() {
           }
           else if (   Threads.increaseDepth
                    && !mainThread->ponder
-                   && !prepareForNextSearch
                    && Time.elapsed() > totalTime * 0.43)
                    Threads.increaseDepth = false;
           else
@@ -746,7 +734,7 @@ namespace {
     bool givesCheck, improving, didLMR, priorCapture;
     bool capture, doFullDepthSearch, moveCountPruning, ttCapture;
     Piece movedPiece;
-    int moveCount, captureCount, quietCount, improvement, complexity, oppChoice;
+    int moveCount, captureCount, quietCount, improvement, complexity;
 
     // Step 1. Initialize node
     Thread* thisThread = pos.this_thread();
@@ -757,7 +745,6 @@ namespace {
     moveCount          = captureCount = quietCount = ss->moveCount = 0;
     bestValue          = -VALUE_INFINITE;
     maxValue           = VALUE_INFINITE;
-    oppChoice          = 0;
 
     // Check for the available remaining time
     if (thisThread == Threads.main())
@@ -1527,7 +1514,7 @@ moves_loop: // When in check, search starts here
       if (value > bestValue)
       {
           bestValue = value;
-          oppChoice++;
+
           if (value > alpha)
           {
               bestMove = move;
@@ -1570,12 +1557,6 @@ moves_loop: // When in check, search starts here
               quietsSearched[quietCount++] = move;
       }
     }
-
-    if (depth > 5 && oppChoice > 6 && ss->ply == 2)
-    {
-        bestValue -= 10;
-    }
-        
 
     // The following condition would detect a stop only after move loop has been
     // completed. But in this case bestValue is valid because we have fully
