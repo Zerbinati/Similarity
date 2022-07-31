@@ -1052,15 +1052,14 @@ make_v:
 /// evaluate() is the evaluator for the outer world. It returns a static
 /// evaluation of the position from the point of view of the side to move.
 
-Value Eval::evaluate(const Position& pos, bool bestValue, Value rootEval, int* complexity) {
+Value Eval::evaluate(const Position& pos, Value rootEval, int* complexity) {
 
   Value v;
   Color stm = pos.side_to_move();
   Value psq = pos.psq_eg_stm();
   // Deciding between classical and NNUE eval (~10 Elo): for high PSQ imbalance we use classical,
   // but we switch to NNUE during long shuffling or with high material on the board.
-  // If we are losing badly, we switch to NNUE.
-  bool useClassical =    !bestValue && (pos.this_thread()->depth > 9 || pos.count<ALL_PIECES>() > 7)
+  bool useClassical =    (pos.this_thread()->depth > 9 || pos.count<ALL_PIECES>() > 7)
                       && abs(psq) * 5 > (856 + pos.non_pawn_material() / 64) * (10 + pos.rule50_count());
 
   if (!useNNUE || useClassical)
